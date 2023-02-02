@@ -415,6 +415,7 @@
         // Add trials
         for (trial of block.trials) {
             timeline.push(fixation_cross)
+            trial.data.block = i + 1
             timeline.push(trial)
         }
 
