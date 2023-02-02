@@ -413,9 +413,12 @@
         const block = blocks[i]
 
         // Add trials
+        let counter = 0
         for (trial of block.trials) {
+            counter++
             timeline.push(fixation_cross)
             trial.data.block = i + 1
+            trial.data.block_position = counter
             timeline.push(trial)
         }
 
