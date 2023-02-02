@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Task Switching</title>
+    <script src="https://unpkg.com/jspsych@7.2.1"></script>
+    <link href="https://unpkg.com/jspsych@7.2.1/css/jspsych.css" rel="stylesheet" type="text/css" />
+    <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.1.0"></script>
+</head>
+
+<body></body>
+
+<script>
+    const trial_limit = 3000
+    const fix_dir = 1000
+    const keys = ['f', 'j']
+
+    // Initialize jsPsych
+    const jsPsych = initJsPsych({
+        on_finish: function () {
+            // Saves the relevant data to csv
+            jsPsych.data.get().localSave('csv', `${sbjID}_TaskSwitch_Raw_${start_time}.csv`)
+            jsPsych.data.get()
+                .filter({ test_trial: true })
+                .ignore('test_trial')
+                .ignore('internal_node_id')
+                .ignore('stimulus')
+                .ignore('trial_type')
+                .ignore('trial_index')
+                .localSave('csv', `${sbjID}_TaskSwitch_Processed_${start_time}.csv`)
+        }
+    })
+    let timeline = []
+
+    // Add info
+    const sbjID = jsPsych.randomization.randomID(5)
+    const seed = jsPsych.randomization.setSeed()
+    const start_time = new Date().toISOString()
+    jsPsych.data.addProperties({ sbj_id: sbjID, start_time: start_time, seed: seed })
+
+    // Create blocks of trials
+    let blocks = []
+    // Create all odd-even block
+    function make_trial(digit, corr_res, trial_type, block_type, test_trial) {
+        let prompt = '</br>'.repeat(2)
+        if (trial_type == 'odd_even') {
+            prompt = prompt + 'O/E'
+        } else {
+            prompt = prompt + 'H/L'
+        }
+
+        return {
+            type: jsPsychHtmlKeyboardResponse,
+            stimulus: `${digit}`,
+            prompt: prompt,
+            choices: keys,
+            trial_duration: trial_limit,
+            data: {
+                trial_tag: trial_type,
+                corr_res: corr_res,
+                digit: digit,
+                block_type: block_type,
+                test_trial: test_trial
+            },
+            on_finish: function (data) {
+                data.corr = jsPsych.pluginAPI.compareKeys(data.response, data.corr_res)
+            }
+        }
+    }
+
+    const fixation_cross = {
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: '<p><b>+</b></p>',
+        prompt: '</br>'.repeat(3),
+        choices: 'NO_KEYS',
+        trial_duration: fix_dir,
+        data: {
+            trial_tag: 'fixation_cross',
+            test_trial: false
+        }
+    }
+    let OEBlock = []
+    for (let i = 0; i < 6; i++) {
+        // Pick an odd number
+        const odd = jsPsych.randomization.sampleWithoutReplacement([1, 3, 5, 7, 9], 1)[0]
+        // Pick an even number
+        const even = jsPsych.randomization.sampleWithoutReplacement([0, 2, 4, 6, 8], 1)[0]
+
+        // Add trials with relevant information
+        OEBlock.push(make_trial(odd, keys[0], 'odd_even', 'OE', true))
+
+        OEBlock.push(make_trial(even, keys[1], 'odd_even', 'OE', true))
+    }
+    // Shuffle odd even block
+    OEBlock = jsPsych.randomization.shuffle(OEBlock)
+    blocks.push({
+        trials: OEBlock,
+        type: "OE"
+    })
+
+    // Create all high-low block
+    let HLBlock = []
+    for (let i = 0; i < 6; i++) {
+        // Pick a high number
+        const high = jsPsych.randomization.sampleWithoutReplacement([5, 6, 7, 8, 9], 1)[0]
+        // Pick a low number
+        const low = jsPsych.randomization.sampleWithoutReplacement([0, 1, 2, 3, 4], 1)[0]
+
+        // Add trials with relevant information
+        HLBlock.push(make_trial(high, keys[0], 'high_low', 'HL', true))
+
+        HLBlock.push(make_trial(low, keys[1], 'high_low', 'HL', true))
+    }
+    // Shuffle high low block
+    HLBlock = jsPsych.randomization.shuffle(HLBlock)
+    blocks.push({
+        trials: HLBlock,
+        type: "HL"
+    })
+
+    // Create OE then HL block
+    let OEHLBlock = []
+    for (let i = 0; i < 3; i++) {
+        // Pick an odd number
+        const odd = jsPsych.randomization.sampleWithoutReplacement([1, 3, 5, 7, 9], 1)[0]
+        // Pick an even number
+        const even = jsPsych.randomization.sampleWithoutReplacement([0, 2, 4, 6, 8], 1)[0]
+
+        // Add trials with relevant information
+        OEHLBlock.push(make_trial(odd, keys[0], 'odd_even', 'OEHL', true))
+
+        OEHLBlock.push(make_trial(even, keys[1], 'odd_even', 'OEHL', true))
+    }
+
+    // Shuffle OEHL block
+    OEHLBlock = jsPsych.randomization.shuffle(OEHLBlock)
+
+    // Create HL trials
+    let tmp = []
+    for (let i = 0; i < 3; i++) {
+        // Pick a high number
+        const high = jsPsych.randomization.sampleWithoutReplacement([5, 6, 7, 8, 9], 1)[0]
+        // Pick a low number
+        const low = jsPsych.randomization.sampleWithoutReplacement([0, 1, 2, 3, 4], 1)[0]
+
+        // Add trials with relevant information
+        tmp.push(make_trial(high, keys[0], 'high_low', 'OEHL', true))
+
+        tmp.push(make_trial(low, keys[1], 'high_low', 'OEHL', true))
+    }
+    // Shuffle then append
+    tmp = jsPsych.randomization.shuffle(tmp)
+    OEHLBlock = OEHLBlock.concat(tmp)
+    blocks.push({
+        trials: OEHLBlock,
+        type: "OEHL"
+    })
+
+    // Create HL then OE block
+    let HLOEBlock = []
+    for (let i = 0; i < 3; i++) {
+        // Pick a high number
+        const high = jsPsych.randomization.sampleWithoutReplacement([5, 6, 7, 8, 9], 1)[0]
+        // Pick a low number
+        const low = jsPsych.randomization.sampleWithoutReplacement([0, 1, 2, 3, 4], 1)[0]
+
+        // Add trials with relevant information
+        HLOEBlock.push(make_trial(high, keys[0], 'high_low', 'HLOE', true))
+
+        HLOEBlock.push(make_trial(low, keys[1], 'high_low', 'HLOE', true))
+    }
+
+    // Shuffle HLOE block
+    HLOEBlock = jsPsych.randomization.shuffle(HLOEBlock)
+
+    // Create OE trials
+    tmp = []
+    for (let i = 0; i < 3; i++) {
+        // Pick an odd number
+        const odd = jsPsych.randomization.sampleWithoutReplacement([1, 3, 5, 7, 9], 1)[0]
+        // Pick an even number
+        const even = jsPsych.randomization.sampleWithoutReplacement([0, 2, 4, 6, 8], 1)[0]
+
+        // Add trials with relevant information
+        tmp.push(make_trial(odd, keys[0], 'odd_even', 'HLOE', true))
+
+        tmp.push(make_trial(even, keys[1], 'odd_even', 'HLOE', true))
+    }
+    // Shuffle then append
+    tmp = jsPsych.randomization.shuffle(tmp)
+    HLOEBlock = HLOEBlock.concat(tmp)
+    blocks.push({
+        trials: HLOEBlock,
+        type: "HLOE"
+    })
+
+    // Shuffle blocks
+    blocks = jsPsych.randomization.shuffle(blocks)
+
+    // Add general instructions
+    timeline.push({
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: `
+            <p>You will be making one of two judgments on a digit based on a cue.</p>
+            <p>On each trial, you'll see a digit in the middle of the screen with a cue, you should make a response for each trial based on the cue and digit.</p>
+            <p>You have three seconds to respond on each trial.</p>
+            <p>Press any key to continue.</p>
+        `,
+        data: {
+            trial_tag: "instructions"
+        }
+    })
+
+    // Add odd/even instructions
+    timeline.push({
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: `
+            <p>Odd/even trials will have a task cue "O/E" at the bottom of the screen.</p>
+            <p>You'll see a digit in the middle of the screen, and you'll press <b>${keys[0]}</b> if it is odd, and <b>${keys[1]}</b> if it is even. Zero is even.</p>
+            <p>You have three seconds to respond on each trial.</p>
+            <p>Try it out, press any key to start practice trials!</p>
+        `,
+        data: {
+            trial_tag: "instructions"
+        }
+    })
+
+    // Create OE practice trials
+    let OEPracBlock = []
+    for (let i = 0; i < 1; i++) {
+        // Pick an odd number
+        const odd = jsPsych.randomization.sampleWithoutReplacement([1, 3, 5, 7, 9], 1)[0]
+        // Pick an even number
+        const even = jsPsych.randomization.sampleWithoutReplacement([0, 2, 4, 6, 8], 1)[0]
+
+        // Add trials with relevant information
+        let tmp = []
+        tmp.push(fixation_cross)
+        tmp.push(make_trial(odd, keys[0], 'odd_even', 'OE', false))
+
+        // Feedback
+        tmp.push({
+            type: jsPsychHtmlKeyboardResponse,
+            stimulus: function () {
+                const lastTrial = jsPsych.data.get().last(1).values()[0]
+                if (lastTrial.response === null)
+                    return `
+                        <p>That number was odd, you didn't respond in time.</p>
+                    `
+
+                const response = lastTrial.response[0]
+                return `
+                    <p>That number was odd and you pressed ${response}.</p>
+                    <p>That is ${lastTrial.corr ? 'correct' : 'incorrect'}.</p>
+                `
+            },
+            choices: 'NO_KEYS',
+            trial_duration: 2000,
+            data: {
+                trial_tag: 'feedback',
+                test_trial: false
+            },
+        })
+
+        // Add to block
+        OEPracBlock.push(tmp)
+
+        tmp = []
+        tmp.push(fixation_cross)
+        tmp.push(make_trial(even, keys[1], 'odd_even', 'OE', false))
+
+        // Feedback
+        tmp.push({
+            type: jsPsychHtmlKeyboardResponse,
+            stimulus: function () {
+                const lastTrial = jsPsych.data.get().last(1).values()[0]
+                if (lastTrial.response === null)
+                    return `
+                        <p>That number was even, you didn't respond in time.</p>
+                    `
+
+                const response = lastTrial.response[0]
+                return `
+                    <p>That number was even and you pressed ${response}.</p>
+                    <p>That is ${lastTrial.corr ? 'correct' : 'incorrect'}.</p>
+                `
+            },
+            choices: 'NO_KEYS',
+            trial_duration: 2000,
+            data: {
+                trial_tag: 'feedback',
+                test_trial: false
+            },
+        })
+
+        // Add to block
+        OEPracBlock.push(tmp)
+    }
+
+    // Shuffle then append
+    OEPracBlock = jsPsych.randomization.shuffle(OEPracBlock)
+    for (trial of OEPracBlock) {
+        timeline.push(...trial)
+    }
+
+    // Add high/low instructions
+    timeline.push({
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: `
+            <p>High/low trials will have a task cue "H/L" at the bottom of the screen.</p>
+            <p>You'll see a digit in the middle of the screen, and you'll press <b>${keys[0]}</b> if it is high, and <b>${keys[1]}</b> if it is low. Five and above is high.</p>
+            <p>You have three seconds to respond on each trial.</p>
+            <p>Try it out, press any key to start practice trials!</p>
+        `,
+        data: {
+            trial_tag: "instructions"
+        }
+    })
+
+    // Create HL practice trials
+    let HLPracBlock = []
+    for (let i = 0; i < 1; i++) {
+        // Pick a high number
+        const high = jsPsych.randomization.sampleWithoutReplacement([5, 6, 7, 8, 9], 1)[0]
+        // Pick a low number
+        const low = jsPsych.randomization.sampleWithoutReplacement([0, 1, 2, 3, 4], 1)[0]
+
+        // Add trials with relevant information
+        let tmp = []
+        tmp.push(fixation_cross)
+        tmp.push(make_trial(high, keys[0], 'high_low', 'HL', false))
+
+        // Feedback
+        tmp.push({
+            type: jsPsychHtmlKeyboardResponse,
+            stimulus: function () {
+                const lastTrial = jsPsych.data.get().last(1).values()[0]
+                if (lastTrial.response === null)
+                    return `
+                        <p>That number was high, you didn't respond in time.</p>
+                    `
+
+                const response = lastTrial.response[0]
+                return `
+                    <p>That number was high and you pressed ${response}.</p>
+                    <p>That is ${lastTrial.corr ? 'correct' : 'incorrect'}.</p>
+                `
+            },
+            choices: 'NO_KEYS',
+            trial_duration: 2000,
+            data: {
+                trial_tag: 'feedback',
+                test_trial: false
+            },
+        })
+
+        // Add to block
+        HLPracBlock.push(tmp)
+
+        tmp = []
+        tmp.push(fixation_cross)
+        tmp.push(make_trial(low, keys[1], 'high_low', 'HL', false))
+
+        // Feedback
+        tmp.push({
+            type: jsPsychHtmlKeyboardResponse,
+            stimulus: function () {
+                const lastTrial = jsPsych.data.get().last(1).values()[0]
+                if (lastTrial.response === null)
+                    return `
+                        <p>That number was low, you didn't respond in time.</p>
+                    `
+
+                const response = lastTrial.response[0]
+                return `
+                    <p>That number was low and you pressed ${response}.</p>
+                    <p>That is ${lastTrial.corr ? 'correct' : 'incorrect'}.</p>
+                `
+            },
+            choices: 'NO_KEYS',
+            trial_duration: 2000,
+            data: {
+                trial_tag: 'feedback',
+                test_trial: false
+            },
+        })
+
+        // Add to block
+        HLPracBlock.push(tmp)
+    }
+
+    // Shuffle then append
+    HLPracBlock = jsPsych.randomization.shuffle(HLPracBlock)
+    for (trial of HLPracBlock) {
+        timeline.push(...trial)
+    }
+
+    timeline.push({
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: `
+            <p>Now we will run the real experiment.</p>
+            <p>On each trial, the judgment you need to make might change, pay attention to the cues.</p>
+            <p>You won't get feedback.</p>
+            <p>Press any key to begin.</p>
+        `,
+        data: {
+            trial_tag: "instructions"
+        }
+    })
+
+    // Add test blocks
+    for (let i = 0; i < blocks.length; i++) {
+        const block = blocks[i]
+
+        // Add trials
+        for (trial of block.trials) {
+            timeline.push(fixation_cross)
+            timeline.push(trial)
+        }
+
+        // Add break
+        if (i < blocks.length - 1) {
+            timeline.push({
+                type: jsPsychHtmlKeyboardResponse,
+                stimulus: `
+                    <p>Time for a break!</p>
+                    <p>Press any key to continue.</p>
+                `,
+                data: {
+                    trial_tag: "instructions"
+                }
+            })
+        }
+    }
+
+    jsPsych.run(timeline)
+</script>
