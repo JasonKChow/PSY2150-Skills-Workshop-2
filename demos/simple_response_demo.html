@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Simple Response Demo</title>
+    <script src="https://unpkg.com/jspsych@7.2.1"></script>
+    <link href="https://unpkg.com/jspsych@7.2.1/css/jspsych.css" rel="stylesheet" type="text/css" />
+    <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.1.0"></script>
+</head>
+
+<body></body>
+
+<script>
+    // Initialize jsPsych
+    const jsPsych = initJsPsych({})
+    let timeline = []
+
+    // Create a trial
+    timeline.push({
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: `
+            <p>Press any key when the fixation cross disappears.</p>
+            <p>Press any key to begin.</p>
+        `,
+    })
+
+    // Create fixation cross
+    timeline.push({
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: `
+            <p><b>+</b></p>
+        `,
+        trial_duration: jsPsych.randomization.randomInt(1000, 4000),
+    })
+
+    // Create response trial
+    timeline.push({
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: `
+            <p>Go!</p>
+        `,
+    })
+
+    // Create display trial
+    timeline.push({
+        type: jsPsychHtmlKeyboardResponse,
+        stimulus: function () {
+            return `
+                <p>You responded in ${jsPsych.data.getLastTrialData().trials[0].rt} milliseconds.</p>
+                <p>Reload the page to try again.</p>
+            `
+        },
+        choices: 'NO_KEYS'
+    })
+
+    // Run it
+    jsPsych.run(timeline)
+</script>
